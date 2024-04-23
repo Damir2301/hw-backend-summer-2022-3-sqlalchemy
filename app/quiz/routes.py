@@ -7,6 +7,7 @@ from app.quiz.views import (
     ThemeListView,
 )
 
+
 if typing.TYPE_CHECKING:
     from app.web.app import Application
 
