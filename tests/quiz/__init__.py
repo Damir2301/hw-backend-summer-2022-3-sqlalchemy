@@ -1,14 +1,14 @@
-from app.quiz.models import AnswerModel, QuestionModel, ThemeModel
+from app.quiz.models import Answer, Question, Theme
 
 
-def theme2dict(theme: ThemeModel):
+def theme2dict(theme: Theme):
     return {
         "id": int(theme.id),
         "title": str(theme.title),
     }
 
 
-def question2dict(question: QuestionModel):
+def question2dict(question: Question):
     return {
         "id": int(question.id),
         "title": str(question.title),
@@ -17,7 +17,7 @@ def question2dict(question: QuestionModel):
     }
 
 
-def answer2dict(answer: AnswerModel):
+def answer2dict(answer: Answer):
     return {
         "title": answer.title,
         "is_correct": answer.is_correct,

@@ -4,7 +4,6 @@ from aiohttp.web_exceptions import HTTPUnauthorized
 
 class AuthRequiredMixin:
     async def _iter(self) -> StreamResponse:
-        if self.request.admin is None:
+        if not getattr(self.request, "admin", None):
             raise HTTPUnauthorized
-
-        return await super()._iter()
+        return await super(AuthRequiredMixin, self)._iter()

@@ -1,84 +1,111 @@
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.quiz.models import (
+    Answer,
     AnswerModel,
+    Question,
     QuestionModel,
+    Theme,
     ThemeModel,
 )
 
 
 @pytest.fixture
-async def theme_1(
-    db_sessionmaker: async_sessionmaker[AsyncSession],
-) -> ThemeModel:
-    new_theme = ThemeModel(title="web-development")
-
-    async with db_sessionmaker() as session:
-        session.add(new_theme)
-        await session.commit()
-
-    return new_theme
+def answers(store) -> list[Answer]:
+    return [
+        Answer(title="1", is_correct=True),
+        Answer(title="2", is_correct=False),
+        Answer(title="3", is_correct=False),
+        Answer(title="4", is_correct=False),
+    ]
 
 
 @pytest.fixture
-async def theme_2(
-    db_sessionmaker: async_sessionmaker[AsyncSession],
-) -> ThemeModel:
-    new_theme = ThemeModel(title="backend")
-
-    async with db_sessionmaker() as session:
+async def theme_1(db_session: AsyncSession) -> Theme:
+    title = "web-development"
+    new_theme = ThemeModel(title=title)
+    async with db_session.begin() as session:
         session.add(new_theme)
-        await session.commit()
 
-    return new_theme
+    return Theme(id=new_theme.id, title=title)
 
 
 @pytest.fixture
-async def question_1(
-    db_sessionmaker: async_sessionmaker[AsyncSession], theme_1: ThemeModel
-) -> QuestionModel:
-    question = QuestionModel(
-        title="how are you?",
+async def theme_2(db_session: AsyncSession) -> Theme:
+    title = "backend"
+    new_theme = ThemeModel(title=title)
+    async with db_session.begin() as session:
+        session.add(new_theme)
+
+    return Theme(id=new_theme.id, title=title)
+
+
+@pytest.fixture
+async def question_1(db_session, theme_1: Theme) -> Question:
+    title = "how are you?"
+    async with db_session.begin() as session:
+        question = QuestionModel(
+            title=title,
+            theme_id=theme_1.id,
+            answers=[
+                AnswerModel(
+                    title="well",
+                    is_correct=True,
+                ),
+                AnswerModel(
+                    title="bad",
+                    is_correct=False,
+                ),
+            ],
+        )
+
+        session.add(question)
+
+    return Question(
+        id=question.id,
+        title=title,
         theme_id=theme_1.id,
         answers=[
-            AnswerModel(
-                title="well",
-                is_correct=True,
-            ),
-            AnswerModel(
-                title="bad",
-                is_correct=False,
-            ),
+            Answer(
+                title=a.title,
+                is_correct=a.is_correct,
+            )
+            for a in question.answers
         ],
     )
 
-    async with db_sessionmaker() as session:
-        session.add(question)
-        await session.commit()
-
-    return question
-
 
 @pytest.fixture
-async def question_2(db_sessionmaker, theme_1: ThemeModel) -> QuestionModel:
-    question = QuestionModel(
-        title="are you doing fine?",
+async def question_2(db_session, theme_1: Theme) -> Question:
+    title = "are you doing fine?"
+    async with db_session.begin() as session:
+        question = QuestionModel(
+            title=title,
+            theme_id=theme_1.id,
+            answers=[
+                AnswerModel(
+                    title="yep",
+                    is_correct=True,
+                ),
+                AnswerModel(
+                    title="nop",
+                    is_correct=False,
+                ),
+            ],
+        )
+
+        session.add(question)
+
+    return Question(
+        id=question.id,
+        title=question.title,
         theme_id=theme_1.id,
         answers=[
-            AnswerModel(
-                title="yep",
-                is_correct=True,
-            ),
-            AnswerModel(
-                title="nop",
-                is_correct=False,
-            ),
+            Answer(
+                title=a.title,
+                is_correct=a.is_correct,
+            )
+            for a in question.answers
         ],
     )
-
-    async with db_sessionmaker() as session:
-        session.add(question)
-        await session.commit()
-
-    return question

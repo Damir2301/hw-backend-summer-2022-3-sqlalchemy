@@ -1,2 +1,2 @@
-from .bot import *
+from .common import *
 from .quiz import *
