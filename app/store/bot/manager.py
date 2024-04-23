@@ -14,13 +14,10 @@ class BotManager:
         self.logger = getLogger("handler")
 
     async def handle_updates(self, updates: list[Update]):
-        songs = ['DA', 'NET']
         for update in updates:
             await self.app.store.vk_api.send_message(
                 Message(
                     user_id=update.object.user_id,
-                    text=f"{f"{f"{f"{f"{f"{1+1}"}"}"}"}"}",
+                    text="Привет!",
                 )
             )
-            print(f"This is the playlist: {"\n".join(songs)}")
-
