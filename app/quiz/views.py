@@ -1,26 +1,27 @@
-
-from collections import Counter
-
+from aiohttp_apispec import querystring_schema, request_schema, response_schema, docs
 from aiohttp.web_exceptions import HTTPConflict, HTTPNotFound, HTTPBadRequest
-from aiohttp_apispec import request_schema, response_schema, querystring_schema
 
-from app.quiz.models import Answer
 from app.quiz.schemes import (
-    ThemeSchema, ThemeListSchema, QuestionSchema, ThemeIdSchema, ListQuestionSchema,
+    ListQuestionSchema,
+    QuestionSchema,
+    ThemeIdSchema,
+    ThemeListSchema,
+    ThemeSchema,
 )
+from app.quiz.models import Answer
 from app.web.app import View
 from app.web.mixins import AuthRequiredMixin
 from app.web.utils import json_response
 
 
 class ThemeAddView(AuthRequiredMixin, View):
+    @docs(tags=["vk_quiz"], summary="Add theme", description="Add theme in quiz")
     @request_schema(ThemeSchema)
     @response_schema(ThemeSchema)
     async def post(self):
         title = self.data["title"]
-        existing_theme = await self.store.quizzes.get_theme_by_title(title)
-        if existing_theme:
-            raise HTTPConflict(reason="theme exists")
+        if await self.store.quizzes.get_theme_by_title(title):
+            raise HTTPConflict(reason='That theme already exist')
         theme = await self.store.quizzes.create_theme(title=title)
         return json_response(data=ThemeSchema().dump(theme))
 
@@ -33,44 +34,55 @@ class ThemeListView(AuthRequiredMixin, View):
 
 
 class QuestionAddView(AuthRequiredMixin, View):
+    @docs(tags=["vk_quiz"], summary="Add question", description="Add question in quiz")
     @request_schema(QuestionSchema)
     @response_schema(QuestionSchema)
     async def post(self):
-        data = self.request['data']
+        data = self.request["data"]
+        data1 = await self.request.json()
+        answers = data1['answers']
 
-        if len(data['answers']) <= 1:
+        flag = 0
+        for answer in answers:
+            if answer['is_correct'] == True:
+                flag += 1
+            if flag > 1:
+                raise HTTPBadRequest
+            
+        if flag == 0:
+                raise HTTPBadRequest    
+            
+        if len(answers) == 1:
             raise HTTPBadRequest
-
-        count_answer = Counter(val['is_correct'] for val in data['answers'] if val['is_correct'])
-        if not count_answer or count_answer[True] > 1:
-            raise HTTPBadRequest
-
-        theme = await self.store.quizzes.get_theme_by_id(data['theme_id'])
-        if not theme:
-            raise HTTPNotFound
-
-        question_title = await self.store.quizzes.get_question_by_title(data["title"])
-        if question_title:
+        
+        if await self.store.quizzes.get_question_by_title(data["title"]):
             raise HTTPConflict
-
-        answers = self.data['answers']
+        if not await self.store.quizzes.get_theme_by_id(int(data["theme_id"])):
+            raise HTTPNotFound
         question = await self.store.quizzes.create_question(
-            title=data['title'],
-            theme_id=data['theme_id'],
-            answers=[Answer(
-                title=answer["title"],
-                is_correct=answer["is_correct"]
-            ) for answer in answers],
+            title=data["title"],
+            theme_id=data["theme_id"],
+            answers=[
+                Answer(
+                    title=answer["title"],
+                    is_correct=answer["is_correct"]
+                ) for answer in data["answers"]
+            ]
         )
-
         return json_response(data=QuestionSchema().dump(question))
 
 
 class QuestionListView(AuthRequiredMixin, View):
+    @docs(tags=["vk_quiz"], summary="Get question list", description="Get question list")
     @querystring_schema(ThemeIdSchema)
     @response_schema(ListQuestionSchema)
     async def get(self):
-        theme_id = self.request["querystring"].get('theme_id')
-        questions = await self.store.quizzes.list_questions(theme_id=theme_id)
-        resp = {"questions": questions}
-        return json_response(data=ListQuestionSchema().dump(resp))
+        if self.request.query.get("theme_id"):
+            theme_id = int(self.request.query.get("theme_id"))
+        else:
+            theme_id = None
+        questions = await self.store.quizzes.list_questions(
+            theme_id=theme_id
+        )
+        questions = [] if questions is None else questions
+        return json_response(ListQuestionSchema().dump({"questions": questions}))

@@ -1,4 +1,7 @@
 from typing import Optional, TYPE_CHECKING
+
+from sqlalchemy import select, func
+from sqlalchemy.engine import ChunkedIteratorResult
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -16,19 +19,13 @@ class Database:
         self.session: Optional[AsyncSession] = None
 
     async def connect(self, *_: list, **__: dict) -> None:
-        user = self.app.config.database.user
-        password = self.app.config.database.password
-        host = self.app.config.database.host
-        port = self.app.config.database.port
-        database = self.app.config.database.database
-
-        DATABASE_URL = (f"postgresql+asyncpg://{user}:{password}@{host}:{port}/{database}")
         self._db = db
-        self._engine = create_async_engine(DATABASE_URL, echo=True, future=True)
-        self.session = sessionmaker(bind=self._engine, expire_on_commit=False, class_=AsyncSession)
+        database_url = f'postgresql+asyncpg://{self.app.config.database.user}:{self.app.config.database.password}@{self.app.config.database.host}/{self.app.config.database.database}'
+        self._engine = create_async_engine(database_url, echo=True, future=True)
+        self.session = sessionmaker(self._engine, expire_on_commit=False, future=True, class_=AsyncSession)
 
     async def disconnect(self, *_: list, **__: dict) -> None:
-        try:
+        # await self.session.rollback()
+        if self._engine:
             await self._engine.dispose()
-        except Exception:
-            pass
+
